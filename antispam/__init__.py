@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # Copyright (c) 2015 Peixuan Ding
 #
+# Authors:
+#   - Peixuan Ding
+#   - Marcin Nowak (small fixes and improvements)
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -22,41 +26,32 @@ from __future__ import print_function
 
 import re
 import os
-import sys
 import json
 from functools import reduce
 
-__version__ = "0.0.10"
+__version__ = "0.1.0"
 
 
 class Model(object):
     """Save & Load the model in/from the file system using Python's json
     module.
     """
-    DEFAULT_DATA_PATH = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "model.json")
-
-    def __init__(self, file_path=None, create_new=False):
+    def __init__(self, file_path=None):
         """Constructs a Model object by the indicated ``file_path``, if the
         file does not exist, create a new file and contruct a empty model.
 
         :param file_path: (optional) Path for the model file indicated, if
-            path is not indicated, use the built-in model file provided by
-            the author, which is located in the ``antispam`` package folder.
+            path is not indicated, an in memory model is created.
 
-        :param create_new: (option) Boolean. If ``True``, create an empty
-            model. ``file_path`` will be used when saving the model. If there
-            is an existing model file on the path, the existing model file
-            will be overwritten.
         """
-        self.file_path = file_path if file_path else self.DEFAULT_DATA_PATH
-        self.create_new = create_new
-        if self.create_new:
-            self.spam_count_total = 0
-            self.ham_count_total = 0
-            self.token_table = {}
-        else:
-            self.spam_count_total, self.ham_count_total, self.token_table = self.load(file_path)
+        self.file_path = file_path
+
+        self.spam_count_total = 0
+        self.ham_count_total = 0
+        self.token_table = {}
+
+        if file_path:
+            self.load(file_path)
 
     def load(self, file_path=None):
         """Load the serialized file from the specified file_path, and return
@@ -65,20 +60,26 @@ class Model(object):
         :param file_path: (optional) Path for the model file. If the path does
             not exist, create a new one.
         """
-        file_path = file_path if file_path else self.DEFAULT_DATA_PATH
+        file_path = file_path if file_path else self.file_path
+        self.file_path = file_path
         if not os.path.exists(file_path):
             with open(file_path, 'a'):
                 os.utime(file_path, None)
         with open(file_path, 'rb') as f:
-            try:
-                return json.load(f)
-            except:
-                return (0, 0, {})
+            data = json.load(f)
+            self.spam_count_total = data[0]
+            self.ham_count_total = data[1]
+            self.token_table = data[2]
 
-    def save(self):
+    def save(self, file_path=None):
         """Serialize the model using Python's json module, and save the
         serialized modle as a file which is indicated by ``self.file_path``."""
-        with open(self.file_path, 'wb') as f:
+        file_path = file_path or self.file_path
+        if not file_path:
+            raise ValueError(
+                'Model has no file_path defined. '
+                'A file_path is required.')
+        with open(file_path, 'wb') as f:
             json.dump(
                 (self.spam_count_total, self.ham_count_total,
                  self.token_table), f)
@@ -93,8 +94,8 @@ class Detector(object):
     TOKENS_RE = re.compile(r"\$?\d*(?:[.,]\d+)+|\w+-\w+|\w+", re.U)
     INIT_RATING = 0.4
 
-    def __init__(self, path=None, create_new=False):
-        self.model = Model(path, create_new)
+    def __init__(self, path=None):
+        self.model = Model(path)
 
     def _get_word_list(self, msg):
         """Return a list of strings which contains only alphabetic letters,
@@ -103,10 +104,13 @@ class Detector(object):
         return filter(lambda s: len(s) > 2,
                       self.TOKENS_RE.findall(msg.lower()))
 
-    def save(self):
+    def load(self, file_path):
+        self.model.load(file_path)
+
+    def save(self, file_path=None):
         """Save ``self.model`` based on ``self.model.file_path``.
         """
-        self.model.save()
+        self.model.save(file_path=file_path)
 
     def train(self, msg, is_spam):
         """Train the model.
@@ -147,7 +151,8 @@ class Detector(object):
                     rating = 0.99
                 elif spam_count == 0 and ham_count > 0:
                     rating = 0.01
-                elif self.model.spam_count_total > 0 and self.model.ham_count_total > 0:
+                elif (self.model.spam_count_total > 0
+                        and self.model.ham_count_total > 0):
                     ham_prob = float(ham_count) / float(
                         self.model.ham_count_total)
                     spam_prob = float(spam_count) / float(
@@ -160,10 +165,10 @@ class Detector(object):
             else:
                 rating = self.INIT_RATING
             ratings.append(rating)
-        
+
         if (len(ratings) == 0):
             return 0
-        
+
         if (len(ratings) > 20):
             ratings.sort()
             ratings = ratings[:10] + ratings[-10:]
@@ -179,39 +184,5 @@ class Detector(object):
         return self.score(msg) > 0.9
 
 
-module = sys.modules[__name__]
-
-
-def score(msg):
-    """Score the message based on the built-in model.
-
-    :param msg: Message to be scored in string format.
-    """
-    if hasattr(module, 'obj'):
-        detector = getattr(module, 'obj')
-        return detector.score(msg)
-    else:
-        detector = Detector()
-        setattr(module, 'obj', detector)
-        return detector.score(msg)
-
-
-def is_spam(msg):
-    """Decide whether the message is a spam or not based on the built-in model.
-
-    :param msg: Message to be classified in string format.
-    """
-    return score(msg) > 0.9
-
-
-if __name__ == "__main__":
-    d = Detector(create_new=True)
-
-    d.train("Super cheap octocats for sale at GitHub.", True)
-    d.train("Hi John, could you please come to my office by 3pm? Ding", False)
-
-    m1 = "Cheap shoes for sale at DSW shoe store!"
-    print(d.score(m1))
-
-    m2 = "Hi mark could you please send me a copy of your machine learning homework? thanks"
-    print(d.score(m2))
+def load(file_path):
+    return Detector(file_path)
