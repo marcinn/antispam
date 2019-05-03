@@ -18,21 +18,22 @@ pip install antispam
 
 # Usage
 
-Use the built-in model provided & trained by author:
+Use previously trained model:
 
 ```python
 import antispam
 
-antispam.score("Cheap shoes for sale at DSW shoe store!")
+detector = antispam.load('path/to/model.json')
+detector.score("Cheap shoes for sale at DSW shoe store!")
 # => 0.9657724517163143
 
-antispam.is_spam("Cheap shoes for sale at DSW shoe store!")
+detector.is_spam("Cheap shoes for sale at DSW shoe store!")
 # => True
 
-antispam.score("Hi mark could you please send me a copy of your machine learning homework? thanks")
+detector.score("Hi mark could you please send me a copy of your machine learning homework? thanks")
 # => 0.0008064840568731558
 
-antispam.is_spam("Hi mark could you please send me a copy of your machine learning homework? thanks")
+detector.is_spam("Hi mark could you please send me a copy of your machine learning homework? thanks")
 # => False
 
 ```
@@ -42,7 +43,7 @@ Train your own modle:
 ```python
 import antispam
 
-d = antispam.Detector("my_model.dat")
+d = antispam.Detector("my_model.json")
 
 d.train("Super cheap octocats for sale at GitHub.", True)
 d.train("Hi John, could you please come to my office by 3pm? Ding", False)
@@ -71,4 +72,3 @@ d.save()
 # License
 
 [MIT Licenses](https://opensource.org/licenses/MIT)
-
