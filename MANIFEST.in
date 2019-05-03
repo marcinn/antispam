@@ -1,2 +1,1 @@
-include LICENSE README.md *.json *.py
-recursive-include antispam *.json
+include LICENSE README.md antispam/default_model.json

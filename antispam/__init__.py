@@ -22,7 +22,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-from __future__ import print_function
 
 import re
 import os
@@ -186,3 +185,8 @@ class Detector(object):
 
 def load(file_path):
     return Detector(file_path)
+
+
+def default():
+    from pkg_resources import resource_filename
+    return load(resource_filename('antispam', 'default_model.json'))

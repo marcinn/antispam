@@ -18,12 +18,22 @@ pip install antispam
 
 # Usage
 
-Use previously trained model:
+Use default model:
 
 ```python
-import antispam
+detector = antispam.default()
+```
 
+or use previously trained model:
+
+```python
 detector = antispam.load('path/to/model.json')
+```
+
+Then make some tests:
+
+```python
+
 detector.score("Cheap shoes for sale at DSW shoe store!")
 # => 0.9657724517163143
 
@@ -38,7 +48,7 @@ detector.is_spam("Hi mark could you please send me a copy of your machine learni
 
 ```
 
-Train your own modle:
+Train your own model:
 
 ```python
 import antispam
